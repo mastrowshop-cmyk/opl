@@ -12,6 +12,24 @@ logging.basicConfig(
 # Токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
+# Команда /chat - показать ID чата и пользователя
+async def chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat.id
+    chat_type = update.message.chat.type
+    user_id = update.message.from_user.id if update.message.from_user else "Неизвестно"
+    user_name = update.message.from_user.first_name if update.message.from_user else "Неизвестно"
+    
+    chat_info = (
+        f"📊 Информация о чате:\n\n"
+        f"🆔 ID чата: `{chat_id}`\n"
+        f"📝 Тип чата: {chat_type}\n"
+        f"👤 ID пользователя: `{user_id}`\n"
+        f"📛 Имя пользователя: {user_name}\n\n"
+        f"💡 Используйте ID чата для технических настроек"
+    )
+    
+    await update.message.reply_text(chat_info, parse_mode='Markdown')
+
 # Приветственное сообщение при присоединении к чату
 async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет приветственное сообщение когда пользователь присоединяется к чату"""
@@ -57,7 +75,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👋 Добро пожаловать в Oplatym.ru!\n\n"
         "Мы рады видеть вас в нашем чате, пожалуйста ознакомьтесь с предупреждением ниже!\n\n"
         "‼️ ВАЖНО: ОСТЕРЕГАЙТЕСЬ МОШЕННИКОВ ‼️\n\n"
-        "В последнее время участились случаи мошенничества.\n"
+        "В последшее время участились случаи мошенничества.\n"
         "Обращаем ваше внимание: мы никогда не пишем первыми.\n"
         "Переходите в наши аккаунты только через ссылки, указанные в этом сообщении:\n\n"
         "🔐 Официальные аккаунты Oplatym.ru\n\n"
@@ -72,7 +90,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Alipay:\n"
         "- @CNYExchangeOplatym\n"
         "- @CNYExchangeOplatym2\n\n"
-        f"Рады приветствовать вас, {user_name}!",
+        f"Рады приветствовать вас, {user_name}!\n\n"
+        "💡 Используйте команду /chat чтобы узнать ID этого чата",
         parse_mode='HTML'
     )
 
@@ -146,8 +165,11 @@ def main():
         # Создаем приложение
         app = Application.builder().token(BOT_TOKEN).build()
 
-        # Добавляем обработчики
+        # Добавляем обработчики команд
         app.add_handler(CommandHandler("start", start_command))
+        app.add_handler(CommandHandler("chat", chat_command))
+        
+        # Обработчик текстовых сообщений
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
         # Обработчик новых участников чата
@@ -159,6 +181,9 @@ def main():
         # Запускаем бота
         logging.info("Бот Oplatym запущен...")
         print("🤖 Бот Oplatym успешно запущен!")
+        print("💡 Доступные команды:")
+        print("   /start - приветственное сообщение")
+        print("   /chat - узнать ID чата")
         app.run_polling(
             poll_interval=3,
             drop_pending_updates=True
