@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 
 # Токен бота из переменных окружения
-BOT_TOKEN = os.getenv('8417645903:AAFJhLWAsxfzGg-2Su6oz4Tp-XfnKf_HZYA')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # Добавим отладочную информацию
 print("=" * 50)
@@ -187,4 +187,5 @@ def main():
         print(f"❌ Ошибка при запуске бота: {e}")
 
 if __name__ == "__main__":
+
     main()
