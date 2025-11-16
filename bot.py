@@ -61,16 +61,15 @@ async def load_reviews() -> List[Dict[str, Any]]:
     async with file_lock:
         if not os.path.exists(REVIEWS_FILE):
             return []
-        # Чтение файла в отдельном потоке чтобы не блокировать loop
         loop = asyncio.get_running_loop()
+
         def _read():
             with open(REVIEWS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
+
         try:
             data = await loop.run_in_executor(None, _read)
-            if isinstance(data, list):
-                return data
-            return []
+            return data if isinstance(data, list) else []
         except Exception as e:
             logger.error(f"Ошибка при загрузке отзывов: {e}")
             return []
@@ -80,9 +79,11 @@ async def save_reviews(reviews: List[Dict[str, Any]]):
     """Сохранить список отзывов в REVIEWS_FILE."""
     async with file_lock:
         loop = asyncio.get_running_loop()
+
         def _write():
             with open(REVIEWS_FILE, "w", encoding="utf-8") as f:
                 json.dump(reviews, f, ensure_ascii=False, indent=2)
+
         try:
             await loop.run_in_executor(None, _write)
         except Exception as e:
@@ -107,7 +108,6 @@ def split_message_by_limit(text: str, limit: int = 4000) -> List[str]:
     """Разбить длинный текст на части длиной <= limit (Telegram limit ~4096, использую запас)."""
     parts = []
     while len(text) > limit:
-        # искать разрыв на последнем доступном переносе строки или пробеле
         cut = text.rfind("\n", 0, limit)
         if cut == -1:
             cut = text.rfind(" ", 0, limit)
@@ -133,8 +133,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.message.chat_id
-    await update.message.reply_text(f"Chat ID: {chat_id}")
+    chat = update.effective_chat
+    if chat:
+        await update.message.reply_text(f"Chat ID: {chat.id}")
+    else:
+        await update.message.reply_text("Не удалось определить chat_id.")
 
 
 async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -149,7 +152,6 @@ async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ℹ️ Отзывов нет.")
         return
 
-    # Собираем единый текст
     parts = []
     for idx, r in enumerate(reviews, start=1):
         author = r.get("author_username") or f"id:{r.get('author_id')}"
@@ -158,7 +160,6 @@ async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     full_text = "📣 НОВЫЕ ОТЗЫВЫ:\n\n" + "\n".join(parts)
 
-    # Отправляем по частям, если большой
     for chunk in split_message_by_limit(full_text):
         try:
             await context.bot.send_message(chat_id=PUBLIC_CHAT_ID, text=chunk)
@@ -197,17 +198,20 @@ async def review_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not query:
         return
-    await query.answer()
-    user_id = query.from_user.id
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
-    if query.data == "leave_review":
+    user_id = query.from_user.id if query.from_user else None
+
+    if query.data == "leave_review" and user_id:
         USER_REVIEW_STATE[user_id] = "waiting_for_review"
         try:
             await query.edit_message_text("✍️ Напишите ваш отзыв одним сообщением. После отправки отзыв будет сохранён.")
         except Exception:
-            # менее критично — просто отправим новое сообщение
             await context.bot.send_message(chat_id=user_id, text="✍️ Напишите ваш отзыв одним сообщением. После отправки отзыв будет сохранён.")
-    elif query.data == "cancel_review":
+    elif query.data == "cancel_review" and user_id:
         USER_REVIEW_STATE.pop(user_id, None)
         try:
             await query.edit_message_text("❌ Отзыв отменён.")
@@ -217,30 +221,26 @@ async def review_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ----------------- Обработка входящих текстов -----------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
+    if not update.message:
         return
 
     user = update.effective_user
     user_id = user.id if user else None
-    text = update.message.text.strip()
+    text = update.message.text.strip() if update.message.text else ""
 
     # Если пользователь в режиме "оставить отзыв"
     if user_id and USER_REVIEW_STATE.get(user_id) == "waiting_for_review":
-        # Добавляем отзыв в persistent файл
-        username = user.username if user and user.username else f"{user.first_name if user else 'user'}"
+        username = user.username if user and user.username else (user.first_name if user else "user")
         await add_review(author_id=user_id, author_username=username, text=text)
-
-        # Уведомляем пользователя
         await update.message.reply_text("Спасибо! Ваш отзыв сохранён и будет отправлен менеджером.")
-        # Убираем состояние
         USER_REVIEW_STATE.pop(user_id, None)
         return
 
-    # --- Ваш существующий генератор ответов (из старого бота) ---
-    message_type = update.message.chat.type
+    # --- Ваш существующий генератор ответов (оставлен без изменений) ---
+    message_type = update.message.chat.type if update.message.chat else "private"
     lower_text = text.lower()
 
-    logger.info(f"User ({update.message.chat.id}) in {message_type}: \"{lower_text}\"")
+    logger.info(f"User ({update.message.chat.id if update.message.chat else 'n/a'}) in {message_type}: \"{lower_text}\"")
 
     response = generate_response(lower_text)
 
@@ -282,15 +282,28 @@ def generate_response(text: str) -> str:
 
 # ----------------- Обработчик ошибок -----------------
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"Update {update} caused error {context.error}")
+    try:
+        logger.error(f"Update {update} caused error {context.error}")
+    except Exception:
+        logger.exception("Ошибка в error_handler")
 
 
 # ----------------- Главная функция -----------------
 def main():
+    # Диагностика токена (не печатаем полный токен)
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN not found in environment variables. Set BOT_TOKEN and restart.")
         print("❌ ОШИБКА: Задайте переменную окружения BOT_TOKEN и перезапустите бота.")
         return
+
+    # Легкая проверка формата токена
+    if ":" not in BOT_TOKEN:
+        logger.error("Invalid BOT_TOKEN format")
+        print("❌ ОШИБКА: Неверный формат BOT_TOKEN")
+        return
+
+    masked = BOT_TOKEN[:6] + "..." + BOT_TOKEN[-6:]
+    logger.info(f"BOT_TOKEN присутствует: {masked}")
 
     try:
         app = Application.builder().token(BOT_TOKEN).build()
@@ -314,10 +327,11 @@ def main():
         app.run_polling(poll_interval=3, drop_pending_updates=True)
 
     except Exception as e:
-        logger.error(f"Ошибка при запуске бота: {e}")
+        logger.exception(f"Ошибка при запуске бота: {e}")
         print(f"❌ Ошибка при запуске: {e}")
 
 
 if __name__ == "__main__":
     main()
+
 
