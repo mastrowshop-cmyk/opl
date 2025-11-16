@@ -12,19 +12,10 @@ logging.basicConfig(
 # Токен бота из переменных окружения
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# Добавим отладочную информацию
-print("=" * 50)
-print("Проверка переменных окружения:")
-print(f"BOT_TOKEN присутствует: {'BOT_TOKEN' in os.environ}")
-print(f"Длина токена: {len(BOT_TOKEN) if BOT_TOKEN else 0}")
-if BOT_TOKEN:
-    print(f"Первые 10 символов токена: {BOT_TOKEN[:10]}...")
-print("=" * 50)
-
 # Приветственное сообщение при присоединении к чату
 async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет приветственное сообщение когда пользователь присоединяется к чату"""
-    if update.message.new_chat_members:
+    if update.message and update.message.new_chat_members:
         for new_member in update.message.new_chat_members:
             if new_member.id == context.bot.id:
                 # Бот добавлен в чат
@@ -47,18 +38,21 @@ async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "Alipay:\n"
                     "- @CNYExchangeOplatym\n"
                     "- @CNYExchangeOplatym2\n\n"
-                    f"Рады приветствовать вас, {update.message.from_user.mention_html()}!",
+                    f"Рады приветствовать вас, {update.message.from_user.mention_html() if update.message.from_user else 'друзья'}!",
                     parse_mode='HTML'
                 )
             else:
                 # Новый пользователь присоединился к чату
                 await update.message.reply_text(
-                    f"Рады приветствовать вас, {new_member.mention_html()}! 👋",
+                    f"Рады приветствовать вас, {new_member.mention_html()}! 👋\n\n"
+                    "‼️ ВАЖНО: ОСТЕРЕГАЙТЕСЬ МОШЕННИКОВ ‼️\n\n"
+                    "Мы никогда не пишем первыми. Переходите в наши аккаунты только через официальные ссылки!",
                     parse_mode='HTML'
                 )
 
 # Команда /start
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_name = update.message.from_user.first_name if update.message.from_user else "друзья"
     await update.message.reply_text(
         "👋 Добро пожаловать в Oplatym.ru!\n\n"
         "Мы рады видеть вас в нашем чате, пожалуйста ознакомьтесь с предупреждением ниже!\n\n"
@@ -78,7 +72,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Alipay:\n"
         "- @CNYExchangeOplatym\n"
         "- @CNYExchangeOplatym2\n\n"
-        f"Рады приветствовать вас, {update.message.from_user.mention_html()}!",
+        f"Рады приветствовать вас, {user_name}!",
         parse_mode='HTML'
     )
 
@@ -142,20 +136,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     # Проверяем наличие токена
     if not BOT_TOKEN:
-        logging.error("❌ BOT_TOKEN not found in environment variables")
-        print("❌ ОШИБКА: Токен бота не обнаружен в переменных окружения")
-        print("ℹ️  Проверьте настройки на Bothost.ru:")
-        print("   1. Перейдите в настройки бота")
-        print("   2. Найдите раздел 'Environment Variables'")
-        print("   3. Убедитесь что есть переменная BOT_TOKEN")
-        print("   4. Значение должно быть вашим токеном от @BotFather")
-        return
-
-    # Дополнительная проверка формата токена
-    if ":" not in BOT_TOKEN:
-        logging.error("❌ Invalid BOT_TOKEN format")
-        print("❌ ОШИБКА: Неверный формат токена")
-        print("ℹ️  Токен должен быть в формате: 1234567890:ABCdefGHIjklMnOprSTUvwxYZabcdEFGHIJ")
+        logging.error("❌ Токен бота не обнаружен в переменных окружения")
+        print("❌ ОШИБКА: Токен бота не обнаружен")
         return
 
     print("✅ Токен обнаружен, запускаем бота...")
@@ -187,5 +169,4 @@ def main():
         print(f"❌ Ошибка при запуске бота: {e}")
 
 if __name__ == "__main__":
-
     main()
