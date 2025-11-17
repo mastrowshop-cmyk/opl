@@ -2,7 +2,7 @@ import logging
 import os
 import json
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.ext import (
@@ -16,8 +16,8 @@ from telegram.ext import (
 )
 
 # ----------------- Настройки -----------------
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # ОБЯЗАТЕЛЬНО: в Bothost → переменные окружения
-PUBLIC_CHAT_ID = -1002136717768  # Чат для публикации отзывов
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+PUBLIC_CHAT_ID = -1002136717768
 REVIEWS_FILE = "reviews.json"
 USER_REVIEW_STATE: Dict[int, str] = {}
 file_lock = asyncio.Lock()
@@ -73,6 +73,13 @@ def split_message_by_limit(text: str, limit: int = 4000):
         parts.append(text)
     return parts
 
+async def delete_later(msg):
+    await asyncio.sleep(DELETE_AFTER)
+    try:
+        await msg.delete()
+    except:
+        pass
+
 # ----------------- Приветствие новых участников -----------------
 async def welcome_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result = update.chat_member
@@ -91,26 +98,22 @@ async def welcome_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Рады приветствовать вас, {user.full_name}! 🎉"
         )
         msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=msg_text)
-        await asyncio.sleep(DELETE_AFTER)
-        await msg.delete()
+        asyncio.create_task(delete_later(msg))
 
 # ----------------- Команды -----------------
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Бот запущен!")
-    await asyncio.sleep(DELETE_AFTER)
-    await msg.delete()
+    asyncio.create_task(delete_later(msg))
 
 async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text(f"Chat ID: {update.message.chat_id}")
-    await asyncio.sleep(DELETE_AFTER)
-    await msg.delete()
+    asyncio.create_task(delete_later(msg))
 
 async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reviews = await load_reviews()
     if not reviews:
         msg = await update.message.reply_text("ℹ️ Отзывов нет.")
-        await asyncio.sleep(DELETE_AFTER)
-        await msg.delete()
+        asyncio.create_task(delete_later(msg))
         return
 
     full = "📣 НОВЫЕ ОТЗЫВЫ:\n\n"
@@ -122,8 +125,7 @@ async def end_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await save_reviews([])
     msg = await update.message.reply_text("✅ Отправлено.")
-    await asyncio.sleep(DELETE_AFTER)
-    await msg.delete()
+    asyncio.create_task(delete_later(msg))
 
 # ----------------- Меню отзывов -----------------
 async def review_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,8 +150,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await add_review(user.id, username, text)
         USER_REVIEW_STATE.pop(user.id, None)
         msg = await update.message.reply_text("Спасибо! Отзыв сохранён.")
-        await asyncio.sleep(DELETE_AFTER)
-        await msg.delete()
+        asyncio.create_task(delete_later(msg))
         return
 
 # ----------------- Основной запуск -----------------
