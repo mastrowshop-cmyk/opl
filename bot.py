@@ -55,7 +55,8 @@ async def load_reviews() -> List[Dict[str, Any]]:
             return await loop.run_in_executor(
                 None, lambda: json.load(open(REVIEWS_FILE, "r", encoding="utf-8"))
             )
-        except:
+        except Exception as e:
+            logger.error(f"Ошибка загрузки reviews.json: {e}")
             return []
 
 async def save_reviews(reviews: List[Dict[str, Any]]):
@@ -119,7 +120,6 @@ async def welcome_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Рады приветствовать вас, {user.full_name}! 🎉"
         )
         msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=msg_text)
-        # автоудаление через 5 минут
         await asyncio.sleep(DELETE_AFTER)
         await msg.delete()
 
@@ -195,29 +195,33 @@ async def review_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ----------------- Обработка текстов -----------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    text = update.message.text.strip()
+    try:
+        user = update.effective_user
+        text = update.message.text.strip()
+        logger.info(f"Сообщение от {user.id} ({user.full_name}): {text}")
 
-    # триггер для русской фразы "конец"
-    if text.lower() == "конец" and user.id in MANAGER_IDS:
-        return await end_command(update, context)
+        # триггер для русской фразы "конец"
+        if text.lower() == "конец" and user.id in MANAGER_IDS:
+            return await end_command(update, context)
 
-    # режим отзыва
-    if USER_REVIEW_STATE.get(user.id) == "wait":
-        username = user.username or user.first_name
-        await add_review(user.id, username, text)
-        USER_REVIEW_STATE.pop(user.id, None)
-        msg = await update.message.reply_text("Спасибо! Отзыв сохранён.")
-        await asyncio.sleep(DELETE_AFTER)
-        await msg.delete()
-        return
+        # режим отзыва
+        if USER_REVIEW_STATE.get(user.id) == "wait":
+            username = user.username or user.first_name
+            await add_review(user.id, username, text)
+            USER_REVIEW_STATE.pop(user.id, None)
+            msg = await update.message.reply_text("Спасибо! Отзыв сохранён.")
+            await asyncio.sleep(DELETE_AFTER)
+            await msg.delete()
+            return
 
-    # автоответчик
-    resp = generate_response(text.lower())
-    if resp:
-        msg = await update.message.reply_text(resp)
-        await asyncio.sleep(DELETE_AFTER)
-        await msg.delete()
+        # автоответчик
+        resp = generate_response(text.lower())
+        if resp:
+            msg = await update.message.reply_text(resp)
+            await asyncio.sleep(DELETE_AFTER)
+            await msg.delete()
+    except Exception as e:
+        logger.error(f"Ошибка при обработке сообщения: {e}")
 
 # ----------------- Генератор ответов -----------------
 def generate_response(text: str):
@@ -252,7 +256,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(welcome_member, ChatMemberHandler.CHAT_MEMBER))
 
-    print("🤖 Бот запущен")
+    print("🤖 Бот запущен и логирует все сообщения")
     app.run_polling()
 
 if __name__ == "__main__":
