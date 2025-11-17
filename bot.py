@@ -4,7 +4,7 @@ import json
 import asyncio
 from typing import List, Dict
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -12,7 +12,6 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
     filters,
-    ChatMemberHandler,
 )
 
 # ----------------- Настройки -----------------
@@ -81,13 +80,8 @@ async def delete_later(msg):
         pass
 
 # ----------------- Приветствие новых участников -----------------
-async def welcome_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    result = update.chat_member
-    new_status = result.new_chat_member.status
-    old_status = result.old_chat_member.status
-    user = result.new_chat_member.user
-
-    if old_status in [ChatMember.LEFT, ChatMember.KICKED] and new_status == ChatMember.MEMBER:
+async def welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    for user in update.message.new_chat_members:
         msg_text = (
             f"👋 Добро пожаловать в Oplatym.ru!\n\n"
             f"‼️ ВАЖНО: ОСТЕРЕГАЙТЕСЬ МОШЕННИКОВ ‼️\n\n"
@@ -97,7 +91,7 @@ async def welcome_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"- @CNYExchangeOplatym\n- @CNYExchangeOplatym2\n\n"
             f"Рады приветствовать вас, {user.full_name}! 🎉"
         )
-        msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=msg_text)
+        msg = await update.message.reply_text(msg_text)
         asyncio.create_task(delete_later(msg))
 
 # ----------------- Команды -----------------
@@ -166,7 +160,7 @@ def main():
     app.add_handler(CommandHandler("end", end_command))
     app.add_handler(CallbackQueryHandler(review_buttons))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(ChatMemberHandler(welcome_member, ChatMemberHandler.CHAT_MEMBER))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_members))
 
     print("🤖 Бот запущен")
     app.run_polling()
