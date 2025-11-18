@@ -110,6 +110,13 @@ PAY_BUTTONS = InlineKeyboardMarkup([
     ]
 ])
 
+# === АДМИН-ПАНЕЛЬ ===
+ADMIN_PANEL = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📋 Список админов", callback_data="admin_list")],
+    [InlineKeyboardButton("➕ Добавить админа", callback_data="admin_add")],
+    [InlineKeyboardButton("📝 Изменить тексты", callback_data="admin_edit")],
+])
+
 # ===================== ПРИВЕТСТВИЕ =====================
 
 WELCOME_TEXT = (
@@ -154,13 +161,14 @@ async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     asyncio.create_task(delete_later(msg))
 
-# ===================== ОБРАБОТКА КНОПОК =====================
+# ===================== КНОПКИ =====================
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-
     d = q.data
+
+    # === кнопки пользователя ===
 
     if d == "accounts":
         formatted = "\n".join(f"{u} — {v}" for u, v in OFFICIAL_USERS.items())
@@ -181,28 +189,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif d == "pay_google":
         msg = await q.message.reply_text(GOOGLE_TEXT)
 
+    # === кнопки админ-панели ===
+
+    elif d == "admin_list":
+        msg = await q.message.reply_text(
+            "📋 Список админов:\n" + "\n".join(str(a) for a in ADMINS)
+        )
+
+    elif d == "admin_add":
+        context.user_data["wait_admin_id"] = True
+        msg = await q.message.reply_text("Введите ID пользователя, которого хотите сделать админом:")
+
+    elif d == "admin_edit":
+        msg = await q.message.reply_text(
+            "📝 Изменить текст можно командой /settext <название>\n"
+            "Доступные блоки: keywords, gpt, suno, google, alipay, pay"
+        )
+
     asyncio.create_task(delete_later(msg))
 
-# ===================== АДМИНКА =====================
+# ===================== КОМАНДА /admin =====================
 
-async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        msg = await update.message.reply_text("⛔ Нет прав.")
+        msg = await update.message.reply_text("⛔ У вас нет прав администратора.")
         return asyncio.create_task(delete_later(msg))
 
-    if not context.args:
-        msg = await update.message.reply_text("Использование: /addadmin ID")
-        return asyncio.create_task(delete_later(msg))
-
-    try:
-        uid = int(context.args[0])
-        if uid not in ADMINS:
-            ADMINS.append(uid)
-        msg = await update.message.reply_text(f"✅ Добавлен админ: {uid}")
-    except:
-        msg = await update.message.reply_text("ID должен быть числом.")
-
+    msg = await update.message.reply_text("🔧 Панель администратора", reply_markup=ADMIN_PANEL)
     asyncio.create_task(delete_later(msg))
+
+# ===================== АДМИНСКИЕ ТЕКСТЫ =====================
 
 async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
@@ -217,7 +233,7 @@ async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/settext suno\n"
             "/settext google\n"
             "/settext alipay\n"
-            "/settext pay\n"
+            "/settext pay"
         )
         return asyncio.create_task(delete_later(msg))
 
@@ -259,7 +275,7 @@ async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("✔ Текст обновлён!")
     asyncio.create_task(delete_later(msg))
 
-# ===================== ОБРАБОТЧИК ВСЕХ СООБЩЕНИЙ =====================
+# ===================== ВСЕ ТЕКСТОВЫЕ СООБЩЕНИЯ =====================
 
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
@@ -269,22 +285,36 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = msg.text.strip()
     low = text.lower()
 
-    # админ редактирует текст
+    # === ввод ID нового админа ===
+    if update.effective_user.id in ADMINS and context.user_data.get("wait_admin_id"):
+        try:
+            uid = int(text)
+            if uid not in ADMINS:
+                ADMINS.append(uid)
+                out = await msg.reply_text(f"✅ Админ добавлен: {uid}")
+            else:
+                out = await msg.reply_text("⚠ Этот пользователь уже админ.")
+        except:
+            out = await msg.reply_text("❌ ID должен быть числом.")
+        context.user_data.pop("wait_admin_id")
+        return asyncio.create_task(delete_later(out))
+
+    # === админ меняет текст ===
     if update.effective_user.id in ADMINS and context.user_data.get("edit"):
         return await settext_apply(update, context)
 
-    # проверка username
+    # === проверка @username ===
     if text.startswith("@") and " " not in text:
         return await check_username(update, context)
 
-    # ключевые слова
+    # === ключевые фразы ===
     if (
         "как купить" in low
         or "как оплатить" in low
         or "как перевести" in low
     ):
-        answer = await msg.reply_text(KEYWORD_TEXT)
-        return asyncio.create_task(delete_later(answer))
+        out = await msg.reply_text(KEYWORD_TEXT)
+        return asyncio.create_task(delete_later(out))
 
 # ===================== MAIN =====================
 
@@ -295,7 +325,7 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("addadmin", add_admin))
+    app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("settext", settext_start))
 
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
