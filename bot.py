@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -33,6 +34,15 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+DELETE_AFTER = 120  # 2 минуты
+
+async def delete_later(msg):
+    await asyncio.sleep(DELETE_AFTER)
+    try:
+        await msg.delete()
+    except:
+        pass
 
 # ===================== ТЕКСТЫ =====================
 
@@ -109,14 +119,14 @@ WELCOME_TEXT = (
     "Оплата:\n"
     "-@OplatymRU\n-@ByOplatymRu\n-@oplatymManager3\n-@OplatymRu4\n\n"
     "Переводы:\n"
-    "-@oplatym_exchange07\n-@Oplatym_exchange20\n\n"
+    "-@oplatym_exchange07\n-@oplatym_exchange20\n\n"
     "Alipay:\n"
     "-@CNYExchangeOplatym\n-@CNYExchangeOplatym2\n\n"
     "Рады приветствовать вас, {username}! 🎉"
 )
 
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Приветствие новых людей"""
+    """Приветствие новых пользователей"""
     for user in update.message.new_chat_members:
         name = user.first_name or "клиент"
 
@@ -126,24 +136,23 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except:
             pass
 
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             WELCOME_TEXT.format(username=name),
             reply_markup=MAIN_BUTTONS
         )
+        asyncio.create_task(delete_later(msg))
 
 # ===================== ПРОВЕРКА USERNAME =====================
 
 async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    if not text.startswith("@"):
-        return
 
     if text in OFFICIAL_USERS:
-        await update.message.reply_text("✅ Вы общаетесь с официальным аккаунтом.")
+        msg = await update.message.reply_text("✅ Вы общаетесь с официальным аккаунтом.")
     else:
-        await update.message.reply_text(
-            "‼⚠ ВНИМАНИЕ! ЭТО НЕ ОФИЦИАЛЬНЫЙ АККАУНТ — ПРЕКРАТИТЕ ОБЩЕНИЕ! ⚠‼"
-        )
+        msg = await update.message.reply_text("‼⚠ ВНИМАНИЕ! ЭТО МОШЕННИК! ⚠‼")
+
+    asyncio.create_task(delete_later(msg))
 
 # ===================== ОБРАБОТКА КНОПОК =====================
 
@@ -155,46 +164,53 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if d == "accounts":
         formatted = "\n".join(f"{u} — {v}" for u, v in OFFICIAL_USERS.items())
-        await q.message.reply_text("Официальные аккаунты:\n" + formatted)
+        msg = await q.message.reply_text("Официальные аккаунты:\n" + formatted)
 
     elif d == "how_pay":
-        await q.message.reply_text(PAY_GUIDE, reply_markup=PAY_BUTTONS)
+        msg = await q.message.reply_text(PAY_GUIDE, reply_markup=PAY_BUTTONS)
 
     elif d == "alipay":
-        await q.message.reply_text(ALIPAY_TEXT)
+        msg = await q.message.reply_text(ALIPAY_TEXT)
 
     elif d == "pay_gpt":
-        await q.message.reply_text(GPT_TEXT)
+        msg = await q.message.reply_text(GPT_TEXT)
 
     elif d == "pay_suno":
-        await q.message.reply_text(SUNO_TEXT)
+        msg = await q.message.reply_text(SUNO_TEXT)
 
     elif d == "pay_google":
-        await q.message.reply_text(GOOGLE_TEXT)
+        msg = await q.message.reply_text(GOOGLE_TEXT)
+
+    asyncio.create_task(delete_later(msg))
 
 # ===================== АДМИНКА =====================
 
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        msg = await update.message.reply_text("⛔ Нет прав.")
+        return asyncio.create_task(delete_later(msg))
 
     if not context.args:
-        return await update.message.reply_text("Использование: /addadmin ID")
+        msg = await update.message.reply_text("Использование: /addadmin ID")
+        return asyncio.create_task(delete_later(msg))
 
     try:
         uid = int(context.args[0])
         if uid not in ADMINS:
             ADMINS.append(uid)
-        await update.message.reply_text(f"✅ Добавлен админ: {uid}")
+        msg = await update.message.reply_text(f"✅ Добавлен админ: {uid}")
     except:
-        await update.message.reply_text("ID должен быть числом.")
+        msg = await update.message.reply_text("ID должен быть числом.")
+
+    asyncio.create_task(delete_later(msg))
 
 async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        msg = await update.message.reply_text("⛔ Нет прав.")
+        return asyncio.create_task(delete_later(msg))
 
     if not context.args:
-        return await update.message.reply_text(
+        msg = await update.message.reply_text(
             "Использование:\n"
             "/settext keywords\n"
             "/settext gpt\n"
@@ -203,27 +219,27 @@ async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/settext alipay\n"
             "/settext pay\n"
         )
+        return asyncio.create_task(delete_later(msg))
 
     key = context.args[0].lower()
     allowed = {"keywords", "gpt", "suno", "google", "alipay", "pay"}
 
     if key not in allowed:
-        return await update.message.reply_text("Неизвестный блок текста.")
+        msg = await update.message.reply_text("Неизвестный блок текста.")
+        return asyncio.create_task(delete_later(msg))
 
     context.user_data["edit"] = key
-    await update.message.reply_text(f"Отправьте НОВЫЙ текст для {key.upper()}")
+    msg = await update.message.reply_text(f"Отправьте НОВЫЙ текст для {key.upper()}")
+    asyncio.create_task(delete_later(msg))
 
 async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMINS:
-        return
-
     key = context.user_data.get("edit")
     if not key:
         return
 
-    value = update.message.text
-
     global KEYWORD_TEXT, GPT_TEXT, SUNO_TEXT, GOOGLE_TEXT, ALIPAY_TEXT, PAY_GUIDE
+
+    value = update.message.text
 
     if key == "keywords":
         KEYWORD_TEXT = value
@@ -239,24 +255,36 @@ async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         PAY_GUIDE = value
 
     context.user_data.pop("edit", None)
-    await update.message.reply_text("✔ Текст обновлён!")
 
-# ===================== ОБРАБОТЧИК ВСЕХ ТЕКСТОВ =====================
+    msg = await update.message.reply_text("✔ Текст обновлён!")
+    asyncio.create_task(delete_later(msg))
+
+# ===================== ОБРАБОТЧИК ВСЕХ СООБЩЕНИЙ =====================
 
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
+    msg = update.message
+    if not msg or not msg.text:
+        return
 
-    # если админ редактирует текст — принимаем новый блок
+    text = msg.text.strip()
+    low = text.lower()
+
+    # админ редактирует текст
     if update.effective_user.id in ADMINS and context.user_data.get("edit"):
         return await settext_apply(update, context)
 
-    # проверка @username
-    if text.startswith("@") and len(text.split()) == 1:
+    # проверка username
+    if text.startswith("@") and " " not in text:
         return await check_username(update, context)
 
-    # ключевые фразы
-    if any(x in text for x in ["как купить", "как оплатить", "как перевести"]):
-        return await update.message.reply_text(KEYWORD_TEXT)
+    # ключевые слова
+    if (
+        "как купить" in low
+        or "как оплатить" in low
+        or "как перевести" in low
+    ):
+        answer = await msg.reply_text(KEYWORD_TEXT)
+        return asyncio.create_task(delete_later(answer))
 
 # ===================== MAIN =====================
 
@@ -272,7 +300,7 @@ def main():
 
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_router))
+    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, text_router))
 
     print("🤖 Бот запущен!")
     app.run_polling()
