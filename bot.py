@@ -2,8 +2,7 @@ import logging
 import os
 import asyncio
 import random
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMemberAdministrator, ChatMemberOwner
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -35,10 +34,10 @@ logger = logging.getLogger(__name__)
 
 DELETE_AFTER = 120
 
-async def delete_later(msg):
+async def delete_later(message):
     await asyncio.sleep(DELETE_AFTER)
     try:
-        await msg.delete()
+        await message.delete()
     except:
         pass
 
@@ -48,7 +47,7 @@ KEYWORD_TEXT = (
     "Оплата сервисов:\n"
     "-@OplatymRU\n-@ByOplatymRu\n-@oplatymManager3\n-@OplatymRu4\n\n"
     "Денежные переводы:\n"
-    "-@oplatym_exchange07\n-@oplatym_exchange20\n\n"
+    "-@oplatym_exchange07\n-@Oplatym_exchange20\n\n"
     "Alipay:\n"
     "-@CNYExchangeOplatym\n-@CNYExchangeOplatym2"
 )
@@ -68,10 +67,10 @@ GOOGLE_TEXT = "Удалите российский профиль и созда�
 ALIPAY_TEXT = "Alipay/WeChat — курсы и комиссии..."
 
 WELCOME_TEXT = (
-    "👋 Добро пожаловать!\n\n"
-    "‼️ Осторожно, мошенники!‼️\n"
-    "Мы первыми не пишем. Проверяйте аккаунты.\n"
-    "Рады приветствовать, {username}!"
+    "👋 Добро пожаловать в Oplatym.ru!\n\n"
+    "‼️ ОСТЕРЕГАЙТЕСЬ МОШЕННИКОВ ‼️\n"
+    "Мы никогда не пишем первыми.\n"
+    "Рады приветствовать вас, {username}!"
 )
 
 HOURLY_MESSAGES = [
@@ -113,7 +112,7 @@ async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text in OFFICIAL_USERS:
         msg = await update.message.reply_text("Официальный аккаунт.")
     else:
-        msg = await update.message.reply_text("Не официальный!")
+        msg = await update.message.reply_text("⚠ НЕ официальный аккаунт!")
     asyncio.create_task(delete_later(msg))
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,6 +171,27 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         asyncio.create_task(delete_later(out))
     except:
         await update.message.reply_text("Ошибка.")
+
+async def chatinfo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    member = await chat.get_member(update.effective_user.id)
+
+    if isinstance(member, ChatMemberOwner):
+        role = "Создатель"
+    elif isinstance(member, ChatMemberAdministrator):
+        role = "Админ"
+    else:
+        role = "Участник"
+
+    text = (
+        f"📌 Информация о чате:\n\n"
+        f"Название: {chat.title}\n"
+        f"ID: {chat.id}\n"
+        f"Тип: {chat.type}\n"
+        f"Ваша роль: {role}\n"
+    )
+
+    await update.message.reply_text(text)
 
 async def hourly_task(bot):
     while True:
@@ -283,12 +303,13 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         out = await msg.reply_text(KEYWORD_TEXT)
         return asyncio.create_task(delete_later(out))
 
-async def runner():
+async def start_bot():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("ban", ban_command))
     app.add_handler(CommandHandler("unban", unban_command))
     app.add_handler(CommandHandler("kick", kick_command))
     app.add_handler(CommandHandler("delete", delete_command))
+    app.add_handler(CommandHandler("chatinfo", chatinfo_command))
     app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("settext", settext_start))
     app.add_handler(CommandHandler("check", check_command))
@@ -299,7 +320,7 @@ async def runner():
     await app.run_polling()
 
 def main():
-    asyncio.run(runner())
+    asyncio.run(start_bot())
 
 if __name__ == "__main__":
     main()
