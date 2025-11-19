@@ -48,31 +48,31 @@ KEYWORD_TEXT = (
     "Оплата сервисов:\n"
     "-@OplatymRU\n-@ByOplatymRu\n-@oplatymManager3\n-@OplatymRu4\n\n"
     "Денежные переводы:\n"
-    "-@oplatym_exchange07\n-@Oplatym_exchange20\n\n"
+    "-@oplatym_exchange07\n-@oplatym_exchange20\n\n"
     "Alipay:\n"
     "-@CNYExchangeOplatym\n-@CNYExchangeOplatym2"
 )
 
 PAY_GUIDE = (
     "⚙️ Мы делаем процесс оплаты максимально простым:\n\n"
-    "➜ Оплата по ссылке в нашей платёжной системе;\n"
+    "➜ Оплата по ссылке;\n"
     "➜ Мы переводим средства на зарубежный счёт и выдаём реквизиты;\n"
     "➜ Этой картой вы сможете оплатить нужный сервис;\n"
     "➜ VPN нужен только если вы в РФ;\n"
-    "➜ Возможна оплата Login+Password — это нормально."
+    "➜ Возможна оплата Login+Password."
 )
 
 GPT_TEXT = (
     "⚙️ Варианты выдачи товара:\n"
-    "➜ Оплата по платёжной ссылке\n"
-    "➜ Login+Password\n"
+    "➜ Оплата по ссылке\n"
+    "➜ Login+Password"
 )
 
 SUNO_TEXT = "Информация по Suno…"
 
 GOOGLE_TEXT = (
     "Для оплаты нужно удалить российский платёжный профиль "
-    "и создать европейский. Мы дадим инструкцию — аккаунт не пострадает."
+    "и создать европейский. Аккаунт не пострадает."
 )
 
 ALIPAY_TEXT = (
@@ -81,31 +81,30 @@ ALIPAY_TEXT = (
     "100–1000¥ — 12.60₽ / ¥\n"
     "1000–3000¥ — 12.50₽ / ¥\n"
     "3000–10000¥ — 12.40₽ / ¥\n\n"
-    "USDT курс:\n"
-    "6.86¥ / 6.91¥ / 6.96¥\n\n"
+    "USDT курс: 6.86¥ / 6.91¥ / 6.96¥\n\n"
     "Комиссии:\n"
     "до 9999₽ — 7%\n"
     "10 000–200 000₽ — 4%\n"
     "200 000₽+ — договорная\n\n"
-    "Помогаем с выводом юаней в рубли."
+    "Помогаем с выводом юаней."
 )
 
 WELCOME_TEXT = (
     "👋 Добро пожаловать в Oplatym.ru!\n\n"
     "‼️ ОСТЕРЕГАЙТЕСЬ МОШЕННИКОВ ‼️\n"
-    "Мы никогда не пишем первыми — проверяйте аккаунты:\n\n"
+    "Мы никогда не пишем первыми. Проверяйте аккаунты:\n\n"
     "Оплата:\n"
     "-@OplatymRU\n-@ByOplatymRu\n-@oplatymManager3\n-@OplatymRu4\n\n"
     "Переводы:\n"
     "-@oplatym_exchange07\n-@oplatym_exchange20\n\n"
     "Alipay:\n"
     "-@CNYExchangeOplatym\n-@CNYExchangeOplatym2\n\n"
-    "Рады приветствовать вас, {username}! 🎉"
+    "Рады приветствовать вас, {username}!"
 )
 
 HOURLY_MESSAGES = [
-    "Уважаемые клиенты, Oplatym.ru\n\n🔒 Если вам написали в личные сообщения и представились менеджером — немедленно заблокируйте данный аккаунт! Это мошенники.",
-    "Уважаемые клиенты, Oplatym.ru\n\n📃 Наши менеджеры первыми не пишут. Список официальных аккаунтов — в закрепленном сообщении."
+    "Уважаемые клиенты, Oplatym.ru\n\n🔒 Если вам написали в личные сообщения и представились менеджером — немедленно заблокируйте аккаунт. Это мошенники.",
+    "Уважаемые клиенты, Oplatym.ru\n\n📃 Наши менеджеры первыми не пишут. Список официальных аккаунтов — в закрепе."
 ]
 
 MAIN_BUTTONS = InlineKeyboardMarkup([
@@ -140,9 +139,9 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text in OFFICIAL_USERS:
-        msg = await update.message.reply_text("✅ Вы общаетесь с официальным аккаунтом.")
+        msg = await update.message.reply_text("✅ Это официальный аккаунт.")
     else:
-        msg = await update.message.reply_text("‼⚠ ВНИМАНИЕ! ЭТО МОШЕННИК! ⚠‼")
+        msg = await update.message.reply_text("⚠ Это мошенник!")
     asyncio.create_task(delete_later(msg))
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -153,100 +152,90 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if username in OFFICIAL_USERS:
         msg = await update.message.reply_text("✅ Это официальный аккаунт.")
     else:
-        msg = await update.message.reply_text("‼⚠ Это НЕ официальный аккаунт! ⚠‼")
+        msg = await update.message.reply_text("⚠ Это НЕ официальный аккаунт!")
     asyncio.create_task(delete_later(msg))
 
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        return await update.message.reply_text("Нет прав.")
     if not context.args:
         return await update.message.reply_text("Использование: /ban <id>")
     try:
         uid = int(context.args[0])
         await update.effective_chat.ban_member(uid)
-        msg = await update.message.reply_text(f"🔨 Пользователь {uid} заблокирован.")
+        msg = await update.message.reply_text(f"Пользователь {uid} заблокирован.")
         asyncio.create_task(delete_later(msg))
     except Exception as e:
         await update.message.reply_text(str(e))
 
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        return await update.message.reply_text("Нет прав.")
     if not context.args:
         return await update.message.reply_text("Использование: /unban <id>")
     try:
         uid = int(context.args[0])
         await update.effective_chat.unban_member(uid)
-        msg = await update.message.reply_text(f"♻ Пользователь {uid} разбанен.")
+        msg = await update.message.reply_text(f"Пользователь {uid} разбанен.")
         asyncio.create_task(delete_later(msg))
     except Exception as e:
         await update.message.reply_text(str(e))
 
 async def kick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        return await update.message.reply_text("Нет прав.")
     if not context.args:
         return await update.message.reply_text("Использование: /kick <id>")
     try:
         uid = int(context.args[0])
         await update.effective_chat.ban_member(uid)
         await update.effective_chat.unban_member(uid)
-        msg = await update.message.reply_text(f"🚪 Пользователь {uid} кикнут.")
+        msg = await update.message.reply_text(f"Пользователь {uid} кикнут.")
         asyncio.create_task(delete_later(msg))
     except Exception as e:
         await update.message.reply_text(str(e))
 
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        return await update.message.reply_text("⛔ Нет прав.")
+        return await update.message.reply_text("Нет прав.")
     if not update.message.reply_to_message:
-        return await update.message.reply_text("Используйте команду в ответ на сообщение.")
+        return await update.message.reply_text("Нужно ответить на сообщение.")
     try:
         await update.message.reply_to_message.delete()
-        msg = await update.message.reply_text("🗑 Сообщение удалено.")
+        msg = await update.message.reply_text("Удалено.")
         asyncio.create_task(delete_later(msg))
     except Exception as e:
         await update.message.reply_text(str(e))
 
-async def hourly_broadcast(app, chat_id):
-    while True:
-        msg = random.choice(HOURLY_MESSAGES)
-        try:
-            await app.bot.send_message(chat_id, msg)
-        except:
-            pass
-        await asyncio.sleep(3600)
+async def hourly_job(context: ContextTypes.DEFAULT_TYPE):
+    msg = random.choice(HOURLY_MESSAGES)
+    await context.bot.send_message(GROUP_ID, msg)
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        msg = await update.message.reply_text("⛔ У вас нет прав администратора.")
-        return asyncio.create_task(delete_later(msg))
-    msg = await update.message.reply_text("🔧 Панель администратора", reply_markup=ADMIN_PANEL)
-    asyncio.create_task(delete_later(msg))
+        out = await update.message.reply_text("Нет прав.")
+        return asyncio.create_task(delete_later(out))
+    out = await update.message.reply_text("Панель администратора", reply_markup=ADMIN_PANEL)
+    asyncio.create_task(delete_later(out))
 
 async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMINS:
-        msg = await update.message.reply_text("⛔ Нет прав.")
-        return asyncio.create_task(delete_later(msg))
+        out = await update.message.reply_text("Нет прав.")
+        return asyncio.create_task(delete_later(out))
     if not context.args:
-        msg = await update.message.reply_text(
+        out = await update.message.reply_text(
             "Использование:\n"
-            "/settext keywords\n"
-            "/settext gpt\n"
-            "/settext suno\n"
-            "/settext google\n"
-            "/settext alipay\n"
-            "/settext pay"
+            "/settext keywords\n/settext gpt\n/settext suno\n/settext google\n/settext alipay\n/settext pay"
         )
-        return asyncio.create_task(delete_later(msg))
+        return asyncio.create_task(delete_later(out))
     key = context.args[0].lower()
     allowed = {"keywords", "gpt", "suno", "google", "alipay", "pay"}
     if key not in allowed:
-        msg = await update.message.reply_text("Неизвестный блок текста.")
-        return asyncio.create_task(delete_later(msg))
+        out = await update.message.reply_text("Неизвестный блок.")
+        return asyncio.create_task(delete_later(out))
     context.user_data["edit"] = key
-    msg = await update.message.reply_text(f"Отправьте новый текст для {key.upper()}")
-    asyncio.create_task(delete_later(msg))
+    out = await update.message.reply_text(f"Отправьте новый текст для {key.upper()}")
+    asyncio.create_task(delete_later(out))
 
 async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     key = context.user_data.get("edit")
@@ -267,8 +256,8 @@ async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif key == "pay":
         PAY_GUIDE = value
     context.user_data.pop("edit", None)
-    msg = await update.message.reply_text("✔ Текст обновлён!")
-    asyncio.create_task(delete_later(msg))
+    out = await update.message.reply_text("Готово.")
+    asyncio.create_task(delete_later(out))
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -276,28 +265,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     d = q.data
     if d == "accounts":
         formatted = "\n".join(f"{u} — {v}" for u, v in OFFICIAL_USERS.items())
-        msg = await q.message.reply_text("Официальные аккаунты:\n" + formatted)
+        out = await q.message.reply_text("Официальные аккаунты:\n" + formatted)
     elif d == "how_pay":
-        msg = await q.message.reply_text(PAY_GUIDE, reply_markup=PAY_BUTTONS)
+        out = await q.message.reply_text(PAY_GUIDE, reply_markup=PAY_BUTTONS)
     elif d == "alipay":
-        msg = await q.message.reply_text(ALIPAY_TEXT)
+        out = await q.message.reply_text(ALIPAY_TEXT)
     elif d == "pay_gpt":
-        msg = await q.message.reply_text(GPT_TEXT)
+        out = await q.message.reply_text(GPT_TEXT)
     elif d == "pay_suno":
-        msg = await q.message.reply_text(SUNO_TEXT)
+        out = await q.message.reply_text(SUNO_TEXT)
     elif d == "pay_google":
-        msg = await q.message.reply_text(GOOGLE_TEXT)
+        out = await q.message.reply_text(GOOGLE_TEXT)
     elif d == "admin_list":
-        msg = await q.message.reply_text("📋 Список админов:\n" + "\n".join(str(a) for a in ADMINS))
+        out = await q.message.reply_text("Админы:\n" + "\n".join(str(a) for a in ADMINS))
     elif d == "admin_add":
         context.user_data["wait_admin_id"] = True
-        msg = await q.message.reply_text("Введите ID нового админа:")
+        out = await q.message.reply_text("Введите ID:")
     elif d == "admin_edit":
-        msg = await q.message.reply_text(
-            "📝 Изменить текст:\n"
+        out = await q.message.reply_text(
             "/settext keywords\n/settext gpt\n/settext suno\n/settext google\n/settext alipay\n/settext pay"
         )
-    asyncio.create_task(delete_later(msg))
+    asyncio.create_task(delete_later(out))
 
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
@@ -310,11 +298,11 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             uid = int(text)
             if uid not in ADMINS:
                 ADMINS.append(uid)
-                out = await msg.reply_text(f"✅ Админ добавлен: {uid}")
+                out = await msg.reply_text(f"Админ добавлен: {uid}")
             else:
-                out = await msg.reply_text("⚠ Этот пользователь уже админ.")
+                out = await msg.reply_text("Этот пользователь уже админ.")
         except:
-            out = await msg.reply_text("❌ ID должен быть числом.")
+            out = await msg.reply_text("ID должно быть числом.")
         context.user_data.pop("wait_admin_id")
         return asyncio.create_task(delete_later(out))
     if update.effective_user.id in ADMINS and context.user_data.get("edit"):
@@ -327,7 +315,7 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     if not TOKEN:
-        print("❌ BOT_TOKEN не найден!")
+        print("BOT_TOKEN не найден")
         return
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("ban", ban_command))
@@ -340,9 +328,11 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, text_router))
-    asyncio.create_task(hourly_broadcast(app, GROUP_ID))
-    print("🤖 Бот запущен!")
+    job_queue = app.job_queue
+    job_queue.run_repeating(hourly_job, interval=3600, first=10)
+    print("Bot запущен")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+
