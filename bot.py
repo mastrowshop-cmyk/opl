@@ -41,6 +41,7 @@ STATS = {
 }
 
 async def delete_later(message):
+    """Удаляет сообщение с задержкой"""
     await asyncio.sleep(DELETE_AFTER)
     try:
         await message.delete()
@@ -118,27 +119,35 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
             WELCOME_TEXT.format(username=name),
             reply_markup=MAIN_BUTTONS
         )
+        # Приветственное сообщение удаляется через время
         asyncio.create_task(delete_later(msg))
 
 async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Проверка юзернейма - сообщение НЕ удаляется"""
     text = update.message.text.strip()
     STATS["checks_performed"] += 1
+    
     if text in OFFICIAL_USERS:
-        msg = await update.message.reply_text("✅ Вы общаетесь с официальным аккаунтом.")
+        # ✅ Официальный аккаунт - сообщение остается навсегда
+        await update.message.reply_text("✅ Вы общаетесь с официальным аккаунтом.")
     else:
-        msg = await update.message.reply_text("‼⚠ Если вам написали с этого аккаунта *НЕМЕДЛЕННО ПРЕКРАТИТЕ ОБЩЕНИЕ ЭТО МОШЕННИКИ!* ⚠‼")
-    asyncio.create_task(delete_later(msg))
+        # ⚠️ Мошенник - сообщение остается навсегда
+        await update.message.reply_text("‼⚠ ВНИМАНИЕ! ЭТО МОШЕННИК! ⚠‼")
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /check - результат удаляется, а само сообщение проверки остается"""
     STATS["checks_performed"] += 1
     if not context.args:
         msg = await update.message.reply_text("Использование: /check @username")
         return asyncio.create_task(delete_later(msg))
+    
     username = context.args[0].strip()
     if username in OFFICIAL_USERS:
         msg = await update.message.reply_text("✅ Это официальный аккаунт.")
     else:
-        msg = await update.message.reply_text("‼⚠ Если вам написали с этого аккаунта НЕМЕЛОЕННО ПРЕКРАТИТЕ ОБЩЕНИЕ ЭТО МОШЕННИКИ! ⚠‼")
+        msg = await update.message.reply_text("‼⚠ Это НЕ официальный аккаунт! ⚠‼")
+    
+    # Результат проверки удаляется, но сообщение с командой /check остается
     asyncio.create_task(delete_later(msg))
 
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -168,9 +177,6 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and context.args[0].startswith('@'):
         username = context.args[0].strip()
         try:
-            # Получаем информацию о пользователе по username
-            # В реальном боте нужно получить user_id через API или другие методы
-            # Это упрощённая реализация
             reason = " ".join(context.args[1:]) if len(context.args) > 1 else "без указания причины"
             msg = await update.message.reply_text(
                 f"🚫 Для бана по username @{username} боту нужны специальные права.\n"
@@ -185,12 +191,13 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Случай 3: Бан по ID (старая функциональность)
     if not context.args:
-        return await update.message.reply_text(
+        msg = await update.message.reply_text(
             "Использование:\n"
             "1. /ban [причина] - в ответ на сообщение\n"
             "2. /ban @username [причина]\n"
             "3. /ban <user_id> [причина]"
         )
+        return asyncio.create_task(delete_later(msg))
     
     try:
         uid = int(context.args[0])
@@ -223,11 +230,12 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Разбан по ID
     if not context.args:
-        return await update.message.reply_text(
+        msg = await update.message.reply_text(
             "Использование:\n"
             "1. /unban - в ответ на сообщение\n"
             "2. /unban <user_id>"
         )
+        return asyncio.create_task(delete_later(msg))
     
     try:
         uid = int(context.args[0])
@@ -262,11 +270,12 @@ async def kick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Кик по ID
     if not context.args:
-        return await update.message.reply_text(
+        msg = await update.message.reply_text(
             "Использование:\n"
             "1. /kick [причина] - в ответ на сообщение\n"
             "2. /kick <user_id> [причина]"
         )
+        return asyncio.create_task(delete_later(msg))
     
     try:
         uid = int(context.args[0])
@@ -285,7 +294,9 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     STATS["admins_actions"] += 1
     
     if not update.message.reply_to_message:
-        return await update.message.reply_text("Нужно ответить на сообщение.")
+        msg = await update.message.reply_text("Нужно ответить на сообщение.")
+        return asyncio.create_task(delete_later(msg))
+    
     try:
         await update.message.reply_to_message.delete()
         msg = await update.message.reply_text("🗑 Сообщение удалено.")
@@ -355,11 +366,13 @@ async def settext_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/settext pay"
         )
         return asyncio.create_task(delete_later(out))
+    
     key = context.args[0].lower()
     allowed = {"keywords", "gpt", "suno", "google", "pay"}
     if key not in allowed:
         out = await update.message.reply_text("Неизвестный блок текста.")
         return asyncio.create_task(delete_later(out))
+    
     context.user_data["edit"] = key
     out = await update.message.reply_text(f"Отправьте новый текст для {key.upper()}")
     asyncio.create_task(delete_later(out))
@@ -368,8 +381,10 @@ async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     key = context.user_data.get("edit")
     if not key:
         return
+    
     global KEYWORD_TEXT, GPT_TEXT, SUNO_TEXT, GOOGLE_TEXT, PAY_GUIDE
     value = update.message.text
+    
     if key == "keywords":
         KEYWORD_TEXT = value
     elif key == "gpt":
@@ -380,6 +395,7 @@ async def settext_apply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         GOOGLE_TEXT = value
     elif key == "pay":
         PAY_GUIDE = value
+    
     context.user_data.pop("edit", None)
     out = await update.message.reply_text("✔ Текст обновлён!")
     asyncio.create_task(delete_later(out))
@@ -424,6 +440,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📝 Изменить текст:\n"
             "/settext keywords\n/settext gpt\n/settext suno\n/settext google\n/settext pay"
         )
+    
+    # Сообщения от кнопок удаляются через время
     asyncio.create_task(delete_later(out))
 
 async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -431,6 +449,7 @@ async def text_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg or not msg.text:
         return
+    
     text = msg.text.strip()
     low = text.lower()
     
@@ -463,6 +482,7 @@ def main():
     if not TOKEN:
         print("❌ BOT_TOKEN не найден!")
         return
+    
     app = Application.builder().token(TOKEN).build()
     
     # Команды админов
